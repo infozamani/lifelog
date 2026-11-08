@@ -1,0 +1,24 @@
+# pyproject.toml
+# تنظیمات پروژه LifeLog برای Flet
+
+[project]
+name = "lifelog"
+version = "0.1.0"
+description = "اپلیکیشن مدیریت زندگی شخصی - ثبت مالی و ملاقات‌ها"
+requires-python = ">=3.10"
+
+dependencies = [
+    "flet>=1.1.0",
+    "flet-charts>=0.2.0",
+]
+
+[tool.flet]
+product = "LifeLog"
+company = "MyPersonalApp"
+org = "com.mylifelog"
+icon = "assets/icon.png"
+description = "ثبت گزارش‌های روزانه، مالی و ملاقات‌ها"
+
+# اگر روزی کتابخانه‌ای نیاز به باز شدن داشت، اینجا اضافه کنید
+# [tool.flet.android]
+# extract_packages = []
