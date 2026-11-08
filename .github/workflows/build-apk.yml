@@ -15,4 +15,5 @@ jobs:
         with:
           name: lifelog-apk
           path: ${{ steps.build.outputs.archive-path }}
+          
           archive: false
