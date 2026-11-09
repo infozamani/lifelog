@@ -453,17 +453,172 @@ def main(page: ft.Page):
         archive_results,
     ], spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
 
+    # ============ تب یادداشت‌ها ============
+    note_category = ft.TextField(
+        label="دسته‌بندی",
+        hint_text="مثلاً شعر، کامپیوتر، عرفان",
+        width=200,
+    )
+    note_title = ft.TextField(label="عنوان", width=340)
+    note_content = ft.TextField(
+        label="متن",
+        multiline=True,
+        min_lines=4,
+        max_lines=10,
+        width=340,
+    )
+    note_editing_id = ft.Ref[ft.Text]()  # نگه‌داری شناسه یادداشت در حال ویرایش
+    editing_id_value = {"id": None}  # چون Ref برای مقدار ساده مناسب نیست
+
+    # فیلتر جستجو در تب یادداشت‌ها
+    note_search = ft.TextField(
+        label="جستجو در عنوان و متن",
+        prefix_icon=ft.Icons.SEARCH,
+        width=240,
+    )
+    note_filter_category = ft.Dropdown(
+        label="دسته‌بندی",
+        options=[ft.dropdown.Option("", "همه")],
+        value="",
+        width=160,
+    )
+    notes_list = ft.Column(spacing=8)
+
+    def refresh_note_categories():
+        """Dropdown دسته‌بندی‌ها را با مقادیر موجود به‌روز می‌کند."""
+        cats = db.get_note_categories()
+        note_filter_category.options = [ft.dropdown.Option("", "همه")] + [
+            ft.dropdown.Option(c, c) for c in cats
+        ]
+
+    def refresh_notes(e=None):
+        """لیست یادداشت‌ها را با فیلتر فعلی بازسازی می‌کند."""
+        notes_list.controls.clear()
+        rows = db.get_notes(
+            category=(note_filter_category.value or None),
+            keyword=(note_search.value or "").strip(),
+        )
+        if not rows:
+            notes_list.controls.append(ft.Text("یادداشتی یافت نشد.", color=ft.Colors.GREY_500))
+        else:
+            for row in rows:
+                card = ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Container(
+                                content=ft.Text(row["category"], size=11, color=ft.Colors.WHITE),
+                                bgcolor=ft.Colors.INDIGO_400,
+                                padding=ft.Padding.symmetric(vertical=6, horizontal=10),
+                                border_radius=12,
+                            ),
+                            ft.Text(row["title"], weight=ft.FontWeight.BOLD, size=14, expand=True),
+                            ft.IconButton(
+                                icon=ft.Icons.EDIT_OUTLINED,
+                                icon_color=ft.Colors.BLUE_400,
+                                tooltip="ویرایش",
+                                on_click=lambda e, r=row: load_note_for_edit(r),
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.DELETE_OUTLINE,
+                                icon_color=ft.Colors.RED_400,
+                                tooltip="حذف",
+                                on_click=lambda e, nid=row["id"]: delete_note_click(nid),
+                            ),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Text(row["content"], size=12, color=ft.Colors.GREY_700),
+                        ft.Text(row["updated_at"].replace("T", " "), size=10, color=ft.Colors.GREY_400),
+                    ], spacing=4),
+                    padding=12, border_radius=10, bgcolor=ft.Colors.WHITE,
+                    border=ft.Border.all(1, ft.Colors.GREY_200),
+                )
+                notes_list.controls.append(card)
+        page.update()
+
+    def load_note_for_edit(row):
+        """یادداشت را برای ویرایش در فرم بارگذاری می‌کند."""
+        editing_id_value["id"] = row["id"]
+        note_category.value = row["category"]
+        note_title.value = row["title"]
+        note_content.value = row["content"]
+        save_note_btn.content = "ذخیره ویرایش"
+        save_note_btn.icon = ft.Icons.UPDATE
+        page.update()
+
+    def delete_note_click(nid):
+        db.delete_note(nid)
+        refresh_note_categories()
+        refresh_notes()
+        page.update()
+
+    def on_save_note(e):
+        if not note_category.value or not note_title.value or not note_content.value:
+            page.show_dialog(ft.SnackBar(ft.Text("دسته‌بندی، عنوان و متن را پر کنید.")))
+            return
+        if editing_id_value["id"] is None:
+            db.add_note(
+                note_category.value.strip(),
+                note_title.value.strip(),
+                note_content.value.strip(),
+            )
+            msg = "✅ یادداشت ثبت شد."
+        else:
+            db.update_note(
+                editing_id_value["id"],
+                note_category.value.strip(),
+                note_title.value.strip(),
+                note_content.value.strip(),
+            )
+            editing_id_value["id"] = None
+            msg = "✅ یادداشت ویرایش شد."
+
+        # پاک کردن فرم
+        note_category.value = ""
+        note_title.value = ""
+        note_content.value = ""
+        save_note_btn.content = "ثبت یادداشت"
+        save_note_btn.icon = ft.Icons.SAVE
+
+        refresh_note_categories()
+        refresh_notes()
+        page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=ft.Colors.GREEN_400))
+        page.update()
+
+    save_note_btn = ft.FilledButton(
+        content="ثبت یادداشت",
+        icon=ft.Icons.SAVE,
+        on_click=on_save_note,
+        width=340,
+    )
+
+    note_search.on_change = refresh_notes
+    note_filter_category.on_change = refresh_notes
+
+    refresh_note_categories()
+    refresh_notes()
+
+    notes_tab = ft.Column([
+        ft.Text("ثبت یادداشت جدید", size=16, weight=ft.FontWeight.BOLD),
+        note_category,
+        note_title,
+        note_content,
+        save_note_btn,
+        ft.Divider(),
+        ft.Text("جستجو و مرور", size=16, weight=ft.FontWeight.BOLD),
+        ft.Row([note_search, note_filter_category], alignment=ft.MainAxisAlignment.START, wrap=True),
+        notes_list,
+    ], spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
     # ============ تب‌ها ============
     tabs = ft.Tabs(
         selected_index=0,
         animation_duration=300,
-        length=4,
+        length=5,
         content=ft.Column(
             controls=[
                 ft.TabBar(
                     tabs=[
                         ft.Tab(label="مالی", icon=ft.Icons.ACCOUNT_BALANCE_WALLET),
                         ft.Tab(label="ملاقات‌ها", icon=ft.Icons.EVENT),
+                        ft.Tab(label="یادداشت‌ها", icon=ft.Icons.NOTE_ALT_OUTLINED),
                         ft.Tab(label="گزارش‌ها", icon=ft.Icons.BAR_CHART),
                         ft.Tab(label="آرشیو", icon=ft.Icons.ARCHIVE),
                     ]
@@ -472,6 +627,7 @@ def main(page: ft.Page):
                     controls=[
                         finance_tab,
                         meetings_tab,
+                        notes_tab,
                         reports_tab,
                         archive_tab,
                     ],
@@ -481,13 +637,6 @@ def main(page: ft.Page):
             expand=True,
         ),
         expand=True,
-    )
-
-    # ============ AppBar و افزودن به صفحه ============
-    page.appbar = ft.AppBar(
-        title=ft.Text("LifeLog", weight=ft.FontWeight.BOLD),
-        center_title=True,
-        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
     )
 
     page.add(tabs)

@@ -60,6 +60,20 @@ def init_db():
             notified INTEGER DEFAULT 0
         )
     """)
+     # جدول یادداشت‌ها/مطالب
+    # category: دسته‌بندی (مثلاً "شعر"، "کامپیوتر"، "عرفان")
+    # title: عنوان مطلب
+    # content: متن اصلی
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
 
     conn.commit()
     conn.close()
@@ -339,3 +353,76 @@ def search_meetings(keyword: str = "", only_future: bool = False, limit: int = 1
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+# ============ توابع یادداشت‌ها ============
+
+def add_note(category: str, title: str, content: str):
+    """یک یادداشت جدید اضافه می‌کند."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat(timespec="seconds")
+    cursor.execute(
+        "INSERT INTO notes (category, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        (category, title, content, now, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_note(note_id: int, category: str, title: str, content: str):
+    """یک یادداشت موجود را به‌روزرسانی می‌کند."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat(timespec="seconds")
+    cursor.execute(
+        "UPDATE notes SET category = ?, title = ?, content = ?, updated_at = ? WHERE id = ?",
+        (category, title, content, now, note_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_note(note_id: int):
+    """یک یادداشت را حذف می‌کند."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_notes(category: str = None, keyword: str = "", limit: int = 100):
+    """
+    یادداشت‌ها را برمی‌گرداند.
+    category: فیلتر بر اساس دسته‌بندی (None = همه)
+    keyword: جستجو در عنوان و متن
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = "SELECT * FROM notes WHERE 1=1"
+    params = []
+
+    if category:
+        query += " AND category = ?"
+        params.append(category)
+    if keyword:
+        query += " AND (title LIKE ? OR content LIKE ?)"
+        params.extend([f"%{keyword}%", f"%{keyword}%"])
+
+    query += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(limit)
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def get_note_categories():
+    """لیست دسته‌بندی‌های موجود را برمی‌گرداند (برای Dropdown)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT category FROM notes ORDER BY category ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [r["category"] for r in rows]
