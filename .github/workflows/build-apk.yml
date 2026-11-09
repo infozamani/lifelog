@@ -8,20 +8,54 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build APK
-        id: build
-        uses: flet-dev/flet-build-action@v1
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
         with:
-          target: apk
+          python-version: '3.12'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils clang cmake ninja-build pkg-config \
+            libgtk-3-dev libsecret-1-dev libsecret-1-0 \
+            libasound2-dev libunwind-dev libmpv-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav gstreamer1.0-alsa gstreamer1.0-gl \
+            gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-tools \
+            gstreamer1.0-x libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libgstreamer-plugins-bad1.0-dev
+
+      - name: Install Flet
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'flet[all]==1.1.2'
+
+      - name: Verify flet
+        run: |
+          flet --version --json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build APK
+        run: flet build apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: lifelog-apk
-          path: ${{ steps.build.outputs.archive-path }}
-          archive: false
+          path: build/apk/*.apk
           if-no-files-found: error
