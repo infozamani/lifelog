@@ -43,7 +43,18 @@ jobs:
           yes | sdkmanager --licenses || true
 
       - name: Build APK
-        run: flet build apk --no-rich-output
+        env:
+          # غیرفعال کردن خروجی rich برای جلوگیری از خطای رمزگذاری
+          FLET_CLI_NO_RICH_OUTPUT: 1
+          # غیرفعال کردن نوار پیشرفت uv
+          UV_NO_PROGRESS: 1
+          # اجبار پایتون به استفاده از UTF-8
+          PYTHONUTF8: 1
+          # این متغیر کلیدی: به flet می‌گوید بدون پرسیدن سوال، Flutter SDK را نصب کند
+          FLET_CLI_SKIP_FLUTTER_SETUP: 0
+        run: |
+          # با استفاده از yes، به سوال "Proceed? [y/n]" به طور خودکار پاسخ y داده می‌شود
+          yes | flet build apk --no-rich-output
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
