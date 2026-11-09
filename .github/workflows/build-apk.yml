@@ -7,6 +7,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # غیرفعال کردن خروجی rich در CLI Flet برای جلوگیری از خرابی JSON به دلیل فرمت‌بندی/رنگ
+      FLET_CLI_NO_RICH_OUTPUT: 1
+      # اطمینان از رمزگذاری UTF-8
+      PYTHONUTF8: 1
+
     steps:
       - uses: actions/checkout@v4
 
